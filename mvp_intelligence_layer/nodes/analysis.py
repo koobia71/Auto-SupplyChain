@@ -85,6 +85,7 @@ def analysis_node(state: ProcurementState) -> dict[str, Any]:
     prompt_inputs = {
         "demand_json": _as_json_text(state.get("demand", {})),
         "context_json": _as_json_text(state.get("context", {})),
+        "retrieved_context": str(state.get("context", {}).get("retrieved_context", "暂无RAG检索上下文。")),
         "few_shot_cases": few_shot_cases,
     }
 

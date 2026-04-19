@@ -3,7 +3,7 @@
 本文件只负责状态结构（State）和类型声明，不放任何业务流程逻辑。
 """
 
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class ProcurementState(TypedDict):
@@ -40,3 +40,11 @@ class ProcurementState(TypedDict):
 
     # 下一跳节点名：由 supervisor 控制流程路由。
     next: str
+
+    # 验证标记（可选）：用于第4层 Validation & Delivery Layer 接口对接。
+    # 说明：该字段作为“自检中间态”容器，不影响前序节点兼容性。
+    validation_flags: NotRequired[dict[str, Any]]
+
+    # 是否可交付（可选）：当推荐结果通过自检后置为 True。
+    # 说明：该布尔位是 Intelligence Layer 输出给交付层的关键契约字段。
+    delivery_ready: NotRequired[bool]

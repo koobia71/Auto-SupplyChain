@@ -14,48 +14,132 @@ from typing import Literal
 from langgraph.graph import StateGraph, END
 
 from .nodes.analysis import analysis_node
+from .nodes.recommendation import recommendation_node
 from .nodes.research import research_node
 from .nodes.supervisor import supervisor_node
 from mvp_intelligence_layer.state import ProcurementState
 
 
-def recommendation_node(state: ProcurementState) -> dict:
-    """推荐节点：生成结构化推荐，并控制循环次数。
+def retrieve_context_node(state: ProcurementState) -> dict:
+    """RAG 前置节点（可选 stub）。
 
-    设计为最多 2 轮循环：
-    1. 第 1 轮输出初版建议，回到 supervisor 再走一轮（模拟复核）。
-    2. 第 2 轮后标记 completed=True，触发 END。
+    目标：
+    1. 在 supervisor 前统一准备检索上下文，避免各节点重复做基础检索。
+    2. 把价格/供应商/谈判证据放入 context["retrieved_context"]，
+       让后续 analysis/research/recommendation 共享同一组数据支撑。
 
-    这种“先产出判断、再复核沉淀”的机制，正是后续构建
-    judgment_history 数据飞轮的基础骨架。
+    说明：
+    - 当前为 MVP 级实现，后续可扩展为外部向量库、增量索引、混合检索。
+    - 若检索不可用，会写入兜底提示，保证主流程不被阻断。
     """
 
     context = dict(state.get("context", {}))
-    loop_count = int(context.get("loop_count", 0)) + 1
-    context["loop_count"] = loop_count
 
-    recommendation_payload = {
-        "summary": "推荐结果（stub）：优先本地稳定交付供应商，次选跨城备选。",
-        "loop_count": loop_count,
-        "completed": loop_count >= 2,
-    }
+    # 若调用方已注入 benchmark/retrieved_context，则优先复用，避免重复开销。
+    if context.get("retrieved_context"):
+        return {"context": context}
 
-    # 把本轮判断沉淀到历史中，为“今天判断 -> 明天 intelligence”积累样本。
-    history = list(state.get("judgment_history", []))
-    history.append(
-        {
-            "round": loop_count,
-            "analysis": state.get("analysis", ""),
-            "research": state.get("research", ""),
-            "recommendation": recommendation_payload,
+    try:
+        from data_layer.rag_utils import get_default_mro_benchmark, retrieve_context_from_benchmark
+
+        benchmark = context.get("benchmark")
+        if not isinstance(benchmark, dict) or not benchmark:
+            benchmark = get_default_mro_benchmark()
+            context["benchmark"] = benchmark
+
+        demand = state.get("demand", {})
+        query = (
+            f"{demand.get('factory_city', '')} "
+            f"{demand.get('category', '')} "
+            f"{demand.get('item_name', '')} "
+            f"{demand.get('spec', '')} "
+            f"数量{demand.get('quantity', '')}"
+        ).strip()
+
+        context["retrieved_context"] = retrieve_context_from_benchmark(
+            query=query or "MRO备件 价格 供应商 谈判",
+            benchmark_data=benchmark,
+            top_k=4,
+        )
+    except Exception as exc:
+        context["retrieved_context"] = f"RAG检索暂不可用，已降级为规则判断。原因：{exc}"
+
+    return {"context": context}
+
+
+def self_validation_node(state: ProcurementState) -> dict:
+    """轻量自检节点（Stub）。
+
+    作用：
+    1. 在 recommendation 产出后做最小质量闸门；
+    2. 判断是否满足直接交付条件（delivery_ready=True）；
+    3. 对低置信度场景触发回流或 human-in-loop 标记。
+
+    校验规则（MVP）：
+    - confidence > 0.75
+    - 预计节省比例在 10-25 区间
+
+    飞轮价值：
+    - 把“可交付门槛”显式记录到 validation_flags，
+      让每次判断都可复盘、可评估、可用于后续模型改进。
+    """
+
+    context = dict(state.get("context", {}))
+    validation_flags = dict(state.get("validation_flags", {}))
+
+    # 读取 recommendation 节点沉淀的关键信号。
+    confidence_raw = context.get("recommendation_confidence", 0.0)
+    saving_raw = state.get("recommendation", {}).get("expected_saving_percent", 0)
+    loop_count = int(context.get("loop_count", 0))
+
+    try:
+        confidence = float(confidence_raw)
+    except Exception:
+        confidence = 0.0
+
+    try:
+        saving_percent = int(round(float(saving_raw)))
+    except Exception:
+        saving_percent = 0
+
+    confidence_ok = confidence > 0.75
+    saving_ok = 10 <= saving_percent <= 25
+
+    validation_flags["confidence_ok"] = confidence_ok
+    validation_flags["saving_percent_ok"] = saving_ok
+    validation_flags["recommendation_confidence"] = confidence
+    validation_flags["saving_percent"] = saving_percent
+
+    if confidence_ok and saving_ok:
+        # 通过校验，允许交付层接手。
+        validation_flags["human_in_loop"] = False
+        context["human_in_loop"] = False
+        return {
+            "validation_flags": validation_flags,
+            "delivery_ready": True,
+            "context": context,
+            "next": "end",
         }
-    )
 
+    # 低置信度且仍在可循环范围内，回到 supervisor 再走一轮。
+    if loop_count < 3:
+        validation_flags["human_in_loop"] = False
+        context["human_in_loop"] = False
+        return {
+            "validation_flags": validation_flags,
+            "delivery_ready": False,
+            "context": context,
+            "next": "supervisor",
+        }
+
+    # 达到循环上限仍未通过，标记人工介入并结束自动流程。
+    validation_flags["human_in_loop"] = True
+    context["human_in_loop"] = True
     return {
+        "validation_flags": validation_flags,
+        "delivery_ready": False,
         "context": context,
-        "recommendation": recommendation_payload,
-        "judgment_history": history,
-        "next": "end" if recommendation_payload["completed"] else "analysis",
+        "next": "end",
     }
 
 
@@ -75,12 +159,16 @@ def route_from_supervisor(
 
 
 
-def route_from_recommendation(state: ProcurementState) -> Literal["supervisor", "end"]:
-    """推荐完成则结束，否则回到 supervisor 进入下一轮。"""
+def route_from_self_validation(state: ProcurementState) -> Literal["supervisor", "end"]:
+    """根据自检结果决定回流或结束。"""
 
-    if state.get("recommendation", {}).get("completed"):
+    if state.get("next") == "supervisor":
+        return "supervisor"
+    if state.get("delivery_ready") is True:
         return "end"
-    return "supervisor"
+    if state.get("validation_flags", {}).get("human_in_loop"):
+        return "end"
+    return "end"
 
 
 # ------------------------------
@@ -89,12 +177,15 @@ def route_from_recommendation(state: ProcurementState) -> Literal["supervisor", 
 
 workflow = StateGraph(ProcurementState)
 
+workflow.add_node("retrieve_context", retrieve_context_node)
 workflow.add_node("supervisor", supervisor_node)
 workflow.add_node("analysis", analysis_node)
 workflow.add_node("research", research_node)
 workflow.add_node("recommendation", recommendation_node)
+workflow.add_node("self_validation", self_validation_node)
 
-workflow.set_entry_point("supervisor")
+workflow.set_entry_point("retrieve_context")
+workflow.add_edge("retrieve_context", "supervisor")
 
 # supervisor -> analysis/research/recommendation/end
 workflow.add_conditional_edges(
@@ -112,10 +203,11 @@ workflow.add_conditional_edges(
 workflow.add_edge("analysis", "research")
 workflow.add_edge("research", "recommendation")
 
-# recommendation -> supervisor（循环）或 END（完成）
+# recommendation 结束后进入自检，再决定是否回流或结束。
+workflow.add_edge("recommendation", "self_validation")
 workflow.add_conditional_edges(
-    "recommendation",
-    route_from_recommendation,
+    "self_validation",
+    route_from_self_validation,
     {
         "supervisor": "supervisor",
         "end": END,
