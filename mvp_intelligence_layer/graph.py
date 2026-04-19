@@ -73,7 +73,7 @@ def self_validation_node(state: ProcurementState) -> dict:
     作用：
     1. 在 recommendation 产出后做最小质量闸门；
     2. 判断是否满足直接交付条件（delivery_ready=True）；
-    3. 对低置信度场景触发回流或 human-in-loop 标记。
+    3. 对低置信度场景标记 human-in-loop，进入人工处理。
 
     校验规则（MVP）：
     - confidence > 0.75
@@ -111,29 +111,19 @@ def self_validation_node(state: ProcurementState) -> dict:
     validation_flags["saving_percent"] = saving_percent
 
     if confidence_ok and saving_ok:
-        # 通过校验，允许交付层接手。
+        # 通过校验，进入 Validation & Delivery Layer 自动交付流程。
         validation_flags["human_in_loop"] = False
         context["human_in_loop"] = False
         return {
             "validation_flags": validation_flags,
             "delivery_ready": True,
             "context": context,
-            "next": "end",
+            "next": "delivery_workflow",
         }
 
-    # 低置信度且仍在可循环范围内，回到 supervisor 再走一轮。
-    if loop_count < 3:
-        validation_flags["human_in_loop"] = False
-        context["human_in_loop"] = False
-        return {
-            "validation_flags": validation_flags,
-            "delivery_ready": False,
-            "context": context,
-            "next": "supervisor",
-        }
-
-    # 达到循环上限仍未通过，标记人工介入并结束自动流程。
+    # 不通过即标记人工介入，避免低质量结果自动下发。
     validation_flags["human_in_loop"] = True
+    validation_flags["loop_count_at_validation"] = loop_count
     context["human_in_loop"] = True
     return {
         "validation_flags": validation_flags,
@@ -141,6 +131,23 @@ def self_validation_node(state: ProcurementState) -> dict:
         "context": context,
         "next": "end",
     }
+
+
+def delivery_workflow_node(state: ProcurementState) -> dict:
+    """Validation & Delivery Layer 总入口节点。
+
+    流程：
+    validator -> report_generator -> delivery
+
+    说明：
+    - 将第4层能力聚合为一个图节点，避免打破现有主图结构；
+    - 每次交付会自动写入 SQLite 并回写 judgment_history.delivery_feedback，
+      从而形成“交付即沉淀”的数据飞轮闭环。
+    """
+
+    from validation_delivery_layer.delivery import run_delivery_workflow
+
+    return run_delivery_workflow(state)
 
 
 # ------------------------------
@@ -159,13 +166,13 @@ def route_from_supervisor(
 
 
 
-def route_from_self_validation(state: ProcurementState) -> Literal["supervisor", "end"]:
+def route_from_self_validation(state: ProcurementState) -> Literal["delivery_workflow", "end"]:
     """根据自检结果决定回流或结束。"""
 
-    if state.get("next") == "supervisor":
-        return "supervisor"
+    if state.get("next") == "delivery_workflow":
+        return "delivery_workflow"
     if state.get("delivery_ready") is True:
-        return "end"
+        return "delivery_workflow"
     if state.get("validation_flags", {}).get("human_in_loop"):
         return "end"
     return "end"
@@ -183,6 +190,7 @@ workflow.add_node("analysis", analysis_node)
 workflow.add_node("research", research_node)
 workflow.add_node("recommendation", recommendation_node)
 workflow.add_node("self_validation", self_validation_node)
+workflow.add_node("delivery_workflow", delivery_workflow_node)
 
 workflow.set_entry_point("retrieve_context")
 workflow.add_edge("retrieve_context", "supervisor")
@@ -209,10 +217,11 @@ workflow.add_conditional_edges(
     "self_validation",
     route_from_self_validation,
     {
-        "supervisor": "supervisor",
+        "delivery_workflow": "delivery_workflow",
         "end": END,
     },
 )
+workflow.add_edge("delivery_workflow", END)
 
 # 暴露可直接 invoke 的编译图对象。
 graph = workflow.compile()

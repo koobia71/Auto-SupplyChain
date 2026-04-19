@@ -17,6 +17,7 @@ try:
     from data_layer.rag_utils import get_default_mro_benchmark, retrieve_context_from_benchmark
     from mvp_intelligence_layer.graph import graph
     from mvp_intelligence_layer.state import ProcurementState
+    from validation_delivery_layer.delivery import get_delivery_record_count, run_delivery_workflow
 except ModuleNotFoundError:
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
@@ -24,6 +25,7 @@ except ModuleNotFoundError:
     from data_layer.rag_utils import get_default_mro_benchmark, retrieve_context_from_benchmark
     from mvp_intelligence_layer.graph import graph
     from mvp_intelligence_layer.state import ProcurementState
+    from validation_delivery_layer.delivery import get_delivery_record_count, run_delivery_workflow
 
 
 if __name__ == "__main__":
@@ -82,14 +84,26 @@ if __name__ == "__main__":
 
     final_state = graph.invoke(initial_state)
 
+    # 调用第4层 delivery_workflow（幂等设计：若图内已执行交付，不会重复写库）。
+    delivery_patch = run_delivery_workflow(final_state)
+    merged_context = dict(final_state.get("context", {}))
+    merged_context.update(delivery_patch.get("context", {}))
+    final_state.update(delivery_patch)
+    final_state["context"] = merged_context
+
     # 打印最终状态关键输出，验证 Intelligence Layer 已具备“可交付”能力。
     final_recommendation = final_state.get("recommendation", {})
     po_draft = final_recommendation.get("po_draft", {})
     expected_saving = final_recommendation.get("expected_saving_percent", "N/A")
     history_count = len(final_state.get("judgment_history", []))
+    report_path = final_state.get("context", {}).get("report_path", "N/A")
+    db_path = final_state.get("context", {}).get("delivery_db_path")
+    delivery_records = get_delivery_record_count(db_path)
 
     print("=== 最终PO草案 ===")
     print(json.dumps(po_draft, ensure_ascii=False, indent=2))
     print(f"预计节省%: {expected_saving}")
     print(f"judgment_history条数: {history_count}")
+    print(f"PDF报告路径: {report_path}")
+    print(f"SQLite交付记录条数: {delivery_records}")
     print("Intelligence Layer已闭环，可交付给Validation & Delivery Layer")
