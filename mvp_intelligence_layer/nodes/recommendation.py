@@ -163,16 +163,25 @@ def _compute_expected_saving_percent(
     demand: dict[str, Any],
     fallback_value: Any = 15,
 ) -> int:
-    """基于 benchmark 基线价格与目标成交价计算预计节省比例。"""
+    """改进版：更信任 LLM 输出，同时保持合理区间"""
 
-    baseline_price = _estimate_baseline_price_from_benchmark(context)
+    # 优先级1：如果 LLM 直接输出了 expected_saving_percent，使用它
+    if isinstance(recommendation_payload.get("expected_saving_percent"), (int, float)):
+        return max(8, min(28, int(round(recommendation_payload["expected_saving_percent"]))))
+
+    # 优先级2：从 po_draft 或 recommendation 中取 target_price
     target_price = _infer_target_unit_price(recommendation_payload, demand)
 
-    if baseline_price and baseline_price > 0 and target_price > 0:
-        saving_ratio = ((baseline_price - target_price) / baseline_price) * 100
-        return _normalize_saving_percent(saving_ratio)
+    # 从 benchmark 取市场参考价
+    baseline_price = _estimate_baseline_price_from_benchmark(context)
 
-    return _normalize_saving_percent(fallback_value)
+    if baseline_price and baseline_price > 0 and target_price and target_price > 0:
+        saving_ratio = ((baseline_price - target_price) / baseline_price) * 100
+        # 放宽上下限，让 LLM 有发挥空间
+        return max(8, min(28, int(round(saving_ratio))))
+
+    # 兜底值提高到15
+    return max(10, min(25, int(fallback_value)))
 
 
 def _build_po_draft(
