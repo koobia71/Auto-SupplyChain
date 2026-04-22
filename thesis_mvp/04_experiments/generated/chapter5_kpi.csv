@@ -1,0 +1,18 @@
+run_uid,demand_uid,config_id,category,factory_city,item_name,quantity,execution_path,duration_s,loop_count,first_pass,node_count,avg_confidence,analysis_confidence,research_confidence,recommendation_confidence,saving_pct,saving_rate,status,human_in_loop,started_at,finished_at
+run_31309ec6716d,demand_8dd0881fd65b,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,0.0,1,1,3,0.333,0.0,0.0,1.0,12.0,0.12,completed,0,2026-04-21 09:27:56,2026-04-21 09:27:56
+run_84e296a1cf44,demand_b4f604c303fd,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,0.0,1,1,3,0.333,0.0,0.0,1.0,12.0,0.12,completed,0,2026-04-21 09:40:01,2026-04-21 09:40:01
+run_6bc4488ae858,demand_d9904e53762d,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,0.0,1,1,4,0.25,0.0,0.0,1.0,10.0,0.1,completed,0,2026-04-21 09:41:43,2026-04-21 09:41:43
+run_b85637d068b3,demand_25d91624ae9d,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,8.2,1,1,3,0.71,0.56,0.57,1.0,8.0,0.08,completed,0,2026-04-21 09:46:13,2026-04-21 09:46:21
+run_9f007689f8f6,demand_f110b20a0192,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,127.0,1,1,3,0.833,0.75,0.75,1.0,15.0,0.15,completed,0,2026-04-21 09:47:11,2026-04-21 09:49:18
+run_740ea09b0212,demand_ddb5a9c11599,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,0.0,1,1,0,0.0,,,,0,0.0,failed,0,2026-04-21 09:48:03,
+run_3e3eb4625b9c,demand_9ecbe2289778,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,8.5,1,1,3,0.71,0.56,0.57,1.0,8.0,0.08,completed,0,2026-04-21 09:55:41,2026-04-21 09:55:50
+run_e521888685cb,demand_fe17030e9d85,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,8.3,1,1,3,0.71,0.56,0.57,1.0,8.0,0.08,completed,0,2026-04-21 09:56:46,2026-04-21 09:56:54
+run_72df0eed638b,demand_987161b05538,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,97.1,1,1,4,0.575,0.7,0.8,0.8,15.0,0.15,completed,0,2026-04-22 09:44:17,2026-04-22 09:45:57
+run_16475865b093,demand_9bb5d9aa5e3c,A1,MRO备件,东莞,轴承,50.0,langgraph,82.7,1,1,3,0.7,0.7,0.7,0.7,25.0,0.25,completed,0,2026-04-22 09:45:57,2026-04-22 09:47:20
+run_475518f45e65,demand_527132ac05f4,A1,MRO备件,东莞,气动电磁阀,30.0,langgraph,109.9,1,1,3,0.667,0.7,0.6,0.7,15.0,0.15,completed,0,2026-04-22 10:00:02,2026-04-22 10:01:55
+run_ae478940eec8,demand_d53a76e2222f,A1,包装辅料,东莞,打包带,50.0,langgraph,93.2,1,1,4,0.575,0.7,0.8,0.8,10.0,0.1,completed,0,2026-04-22 10:55:34,2026-04-22 10:57:10
+run_72166f499bbb,demand_21a31ad7dfc3,A1,包装辅料,东莞,封箱胶带,200.0,langgraph,82.3,1,1,3,0.7,0.7,0.7,0.7,20.0,0.2,completed,0,2026-04-22 10:57:10,2026-04-22 10:58:32
+run_b50f554a7dc0,demand_db43284f201c,A1,包装辅料,苏州,珍珠棉,100.0,langgraph,93.7,1,1,3,0.7,0.7,0.7,0.7,15.0,0.15,completed,0,2026-04-22 10:58:32,2026-04-22 11:00:06
+run_64ac38f9cc0e,demand_ff49a73f4adf,A1,包装辅料,苏州,热收缩膜,30.0,langgraph,82.9,1,1,3,0.667,0.6,0.7,0.7,20.0,0.2,completed,0,2026-04-22 11:00:06,2026-04-22 11:01:29
+run_563f8bac8238,demand_588df4b17330,A1,包装辅料,东莞,气泡膜,40.0,langgraph,112.1,1,1,3,0.7,0.7,0.7,0.7,20.0,0.2,completed,0,2026-04-22 11:01:29,2026-04-22 11:03:21
+run_ab09edc22733,demand_251e819ebfb6,A1,包装辅料,苏州,纸箱,500.0,langgraph,110.3,1,1,3,0.7,0.7,0.7,0.7,12.0,0.12,completed,0,2026-04-22 11:03:21,2026-04-22 11:05:11

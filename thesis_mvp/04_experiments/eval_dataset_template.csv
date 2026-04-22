@@ -1,0 +1,5 @@
+sample_id,category,factory_city,item_name,spec,quantity,required_date,budget_hint,gold_route,gold_key_requirements,has_price_ground_truth
+MRO_001,MRO备件,东莞,气动电磁阀,"4V210-08, DC24V",30,2026-04-25,单价不高于65元,analysis>research>recommendation,"规格兼容,价格区间,替代型号",1
+MRO_002,MRO备件,东莞,光电传感器,NPN常开检测30cm,20,2026-04-26,总额不高于3000元,analysis>research>recommendation,"检测距离,响应速度,交付稳定",1
+PKG_001,包装辅料,苏州,缠绕膜,50cm*300m 厚度20um,100,2026-04-27,单卷不高于42元,analysis>research>recommendation,"厚度,拉伸性能,平台与本地对比",1
+PKG_002,包装辅料,苏州,封箱胶带,4.8cm*100y 透明高粘,200,2026-04-28,总额不高于2600元,analysis>research>recommendation,"粘性,耐温,批量报价",1

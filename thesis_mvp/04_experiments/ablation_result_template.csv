@@ -1,0 +1,5 @@
+run_id,variant,category,sample_id,route_correct,output_completeness,retry_count,latency_ms,human_intervention,adopted,saving_rate,notes
+run_001,A1_full,MRO备件,MRO_001,1,0.95,0,4200,0,1,0.13,
+run_002,A2_no_few_shot,MRO备件,MRO_001,1,0.88,1,4700,0,1,0.10,
+run_003,A3_no_messages,MRO备件,MRO_001,0,0.81,1,4500,1,0,0.07,
+run_004,A4_rule_supervisor,MRO备件,MRO_001,0,0.79,0,3200,1,0,0.06,

@@ -15,7 +15,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Iterable
 
 from langchain_core.embeddings import Embeddings
@@ -167,13 +169,33 @@ def _split_texts(raw_texts: Iterable[str]) -> list[str]:
 def _get_embedding_model() -> Embeddings:
     """获取嵌入模型：优先 HuggingFace，失败则哈希嵌入。"""
 
-    try:
-        from langchain_community.embeddings import HuggingFaceEmbeddings
+    # 将 HuggingFace 缓存固定到项目目录，避免默认用户目录权限问题。
+    project_root = Path(__file__).resolve().parents[1]
+    hf_home = project_root / ".cache" / "huggingface"
+    hf_home.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("HF_HOME", str(hf_home))
+    os.environ.setdefault("TRANSFORMERS_CACHE", str(hf_home / "transformers"))
+    os.environ.setdefault("HF_HUB_CACHE", str(hf_home / "hub"))
 
-        return HuggingFaceEmbeddings(
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings as NewHuggingFaceEmbeddings
+    except Exception:
+        try:
+            # 兼容旧版本依赖环境（仅在新包缺失时回退）。
+            from langchain_community.embeddings import HuggingFaceEmbeddings as LegacyHuggingFaceEmbeddings
+
+            return LegacyHuggingFaceEmbeddings(
+                model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            )
+        except Exception:
+            return HashEmbeddings(dimensions=256)
+
+    try:
+        return NewHuggingFaceEmbeddings(
             model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
         )
     except Exception:
+        # 新版嵌入初始化失败时直接降级哈希向量，避免再次触发旧版 deprecation 路径。
         return HashEmbeddings(dimensions=256)
 
 
