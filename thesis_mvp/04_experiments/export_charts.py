@@ -190,6 +190,51 @@ def export_chapter5(runs: list[dict], node_outputs: list[dict]) -> None:
     # Also overwrite the standard chapter5_inputs.csv
     _write_csv(kpi_rows, GEN_DIR / "chapter5_inputs.csv")
 
+    # ── Ablation summary: aggregate by config_id (filter invalid LLM runs with saving=0 + duration≈0) ──
+    from collections import defaultdict as _dd
+    cfg_agg: dict[str, dict] = _dd(lambda: {"n": 0, "saving_sum": 0.0, "conf_sum": 0.0,
+                                             "dur_sum": 0.0, "fp_sum": 0})
+    for row in ablation_rows:
+        cfg = row.get("config_id", "A1")
+        saving = float(row.get("saving_pct", 0) or 0)
+        dur = float(row.get("duration_s", 0) or 0)
+        conf = float(row.get("avg_confidence", 0) or 0)
+        fp = int(row.get("first_pass", 1) or 1)
+        # Filter: non-A3 runs with saving=0 AND duration<1s are invalid (broken LLM runs)
+        # A3 legitimately has dur=0 (no LLM), so only filter other configs
+        if saving == 0 and dur < 1.0 and cfg != "A3":
+            continue  # skip broken/invalid LLM runs
+        agg = cfg_agg[cfg]
+        agg["n"] += 1
+        agg["saving_sum"] += saving
+        agg["conf_sum"] += conf
+        agg["dur_sum"] += dur
+        agg["fp_sum"] += fp
+
+    config_labels = {
+        "A1": "完整系统（few-shot+messages+supervisor）",
+        "A2": "无few-shot（judgment_history清空）",
+        "A3": "规则基线（无LLM调用）",
+        "A4": "无supervisor LLM（规则路由替代）",
+    }
+    summary_rows: list[dict] = []
+    for cfg in ["A1", "A2", "A3", "A4"]:
+        if cfg not in cfg_agg:
+            continue
+        agg = cfg_agg[cfg]
+        n = max(agg["n"], 1)
+        summary_rows.append({
+            "config_id": cfg,
+            "label": config_labels.get(cfg, cfg),
+            "n_valid_runs": agg["n"],
+            "avg_saving_pct": round(agg["saving_sum"] / n, 1),
+            "avg_confidence": round(agg["conf_sum"] / n, 3),
+            "avg_duration_s": round(agg["dur_sum"] / n, 1),
+            "first_pass_rate": round(agg["fp_sum"] / n, 3),
+        })
+    _write_csv(summary_rows, GEN_DIR / "chapter5_ablation_summary.csv")
+    print(f"  ✓ chapter5_ablation_summary.csv  ({len(summary_rows)} configs)")
+
 
 # ── Chapter 6: Case pack + Category summary ───────────────────────────────────
 

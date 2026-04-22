@@ -1,0 +1,4 @@
+config_id,label,n_valid_runs,avg_saving_pct,avg_confidence,avg_duration_s,first_pass_rate
+A1,完整系统（few-shot+messages+supervisor）,16,14.1,0.616,63.5,1.0
+A3,规则基线（无LLM调用）,3,15.0,0.4,0.0,1.0
+A4,无supervisor LLM（规则路由替代）,3,12.7,0.658,87.6,1.0

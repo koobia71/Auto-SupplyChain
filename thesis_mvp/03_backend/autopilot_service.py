@@ -135,13 +135,21 @@ def run_autopilot_and_persist(
     demand: dict[str, Any],
     source_channel: str = "portal",
     skip_delivery: bool = False,
+    ablation_config: str = "A1",
 ) -> dict[str, Any]:
     """Run full autopilot pipeline and persist all artifacts to SQLite.
+
+    ablation_config:
+      A1 = 完整系统（默认）
+      A2 = 无few-shot（judgment_history清空，但LLM仍运行）
+      A3 = 规则基线（强制fallback，无LLM调用）
+      A4 = 无supervisor（ABLATION_NO_SUPERVISOR=1）
 
     Returns a dict with:
         run_uid, demand_uid, duration_ms, final_state,
         execution_path, delivery_status, pdf_path
     """
+    import os as _os
     repo = ThesisRepository(db_path=db_path)
     demand_uid = repo.create_demand(demand=demand, source_channel=source_channel)
     run_uid = repo.create_run(demand_uid=demand_uid)
@@ -153,17 +161,37 @@ def run_autopilot_and_persist(
     # ---- Graph invocation --------------------------------------------------
     t0 = now_ms()
     initial_state = build_initial_state(demand, rag_context=rag_context)
-    execution_path = "fallback"
-    try:
-        from mvp_intelligence_layer.graph import graph  # noqa: PLC0415
 
-        final_state = graph.invoke(initial_state)
-        execution_path = "langgraph"
-        context = dict(final_state.get("context", {}))
-        context["execution_path"] = "langgraph"
-        final_state["context"] = context
-    except ModuleNotFoundError:
+    # A2: clear judgment_history so few-shot context is empty
+    if ablation_config == "A2":
+        initial_state["judgment_history"] = []
+
+    execution_path = "fallback"
+
+    # A3: force rule-based fallback (no LLM calls)
+    if ablation_config == "A3":
         final_state = _run_with_fallback(initial_state)
+        execution_path = "fallback-ablation-A3"
+    else:
+        # Set/clear env var for A4
+        if ablation_config == "A4":
+            _os.environ["ABLATION_NO_SUPERVISOR"] = "1"
+        else:
+            _os.environ.pop("ABLATION_NO_SUPERVISOR", None)
+
+        try:
+            from mvp_intelligence_layer.graph import graph  # noqa: PLC0415
+
+            final_state = graph.invoke(initial_state)
+            execution_path = "langgraph" if ablation_config == "A1" else f"langgraph-{ablation_config}"
+            context = dict(final_state.get("context", {}))
+            context["execution_path"] = execution_path
+            final_state["context"] = context
+        except ModuleNotFoundError:
+            final_state = _run_with_fallback(initial_state)
+        finally:
+            # Always clean up the ablation env var
+            _os.environ.pop("ABLATION_NO_SUPERVISOR", None)
 
     duration_ms = now_ms() - t0
 

@@ -16,3 +16,12 @@ run_b50f554a7dc0,A1,demand_db43284f201c,包装辅料,0.7,15.0,93.7,1,1,3
 run_64ac38f9cc0e,A1,demand_ff49a73f4adf,包装辅料,0.667,20.0,82.9,1,1,3
 run_563f8bac8238,A1,demand_588df4b17330,包装辅料,0.7,20.0,112.1,1,1,3
 run_ab09edc22733,A1,demand_251e819ebfb6,包装辅料,0.7,12.0,110.3,1,1,3
+run_77ae14f0c44e,A3,demand_aa425a08ff02,MRO备件,0.4,15.0,0.0,1,1,4
+run_7bc5bb05008e,A3,demand_4ad993df99ae,MRO备件,0.4,15.0,0.0,1,1,4
+run_d5f0e8a3f713,A3,demand_324e5fb13c34,MRO备件,0.4,15.0,0.0,1,1,4
+run_f791be035768,A4,demand_d4a010734c48,MRO备件,0.267,0,0.1,1,1,3
+run_b232cd7ea43c,A4,demand_5c76ffbe64b4,MRO备件,0.267,0,0.0,1,1,3
+run_8e3aaac5f376,A4,demand_56f96049a8e4,MRO备件,0.267,0,0.0,1,1,3
+run_dc4a26c5b27d,A4,demand_bc97ca95d06a,MRO备件,0.7,20.0,69.8,1,1,3
+run_0b4500a04ec7,A4,demand_995d03c07e5d,MRO备件,0.575,10.0,81.6,1,1,4
+run_ba300d186098,A4,demand_0303d1b646f2,MRO备件,0.7,8.0,111.5,1,1,3

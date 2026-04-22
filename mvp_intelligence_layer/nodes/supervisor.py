@@ -232,10 +232,21 @@ def supervisor_node(state: ProcurementState) -> dict[str, Any]:
     输出：至少包含 next 与 messages（与现有 State 结构完全兼容）
 
     关键价值：
-    1. 将“为什么走下一步”沉淀到消息中，形成可审计判断轨迹。
+    1. 将"为什么走下一步"沉淀到消息中，形成可审计判断轨迹。
     2. 利用 judgment_history 动态 few-shot，让历史经验参与当前决策。
     3. 支持 LLM 失败兜底，保障生产稳定性。
     """
+
+    # ---- 消融实验：A4 - 跳过LLM supervisor，改用纯规则路由 -----------------
+    # 说明：A4测量的是"supervisor LLM判断"的价值，不是跳过整条流程。
+    # 规则路由仍能完成 analysis→research→recommendation→end，但无LLM质量反思。
+    if os.environ.get("ABLATION_NO_SUPERVISOR") == "1":
+        decision = _rule_based_fallback(state, "ABLATION_NO_SUPERVISOR=1，使用规则路由代替LLM supervisor")
+        decision["model"] = "ablation-rule-supervisor"
+        decision["confidence"] = 0.45  # 固定低于A1的LLM置信度
+        existing_messages = list(state.get("messages", []))
+        ai_message = AIMessage(content=_as_json_text(decision))
+        return {"next": _sanitize_next(decision.get("next")), "messages": existing_messages + [ai_message]}
 
     # 若推荐已经明确完成，直接结束，避免无意义推理与成本开销。
     if state.get("recommendation", {}).get("completed"):
